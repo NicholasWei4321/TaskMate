@@ -11,17 +11,20 @@ a set of Lists with
   name: String
   owner: User
   items: set of Item
-  startTime: Time? // Optional time range start
-  endTime: Time? // Optional time range end
+  startTime: Time // Always present; defaults to MIN_DATE (Unix epoch) if not specified
+  endTime: Time // Always present; defaults to MAX_DATE (Dec 31, 9999) if not specified
   autoClearCompleted: Boolean // Whether to auto-clear completed items
   recurrenceType: RecurrenceType // none, daily, weekly, monthly
 
 RecurrenceType = none | daily | weekly | monthly
 
+MIN_DATE = January 1, 1970 00:00:00 UTC (Unix epoch)
+MAX_DATE = December 31, 9999 23:59:59.999 UTC
+
 invariants
   each list name is unique per owner
-  if startTime and endTime are both set, startTime must be before or equal to endTime
-  if recurrenceType is not none, both startTime and endTime must be set
+  startTime must be before or equal to endTime
+  if recurrenceType is not none, both startTime and endTime must be explicitly provided (not defaults)
 
 **actions**
 
@@ -32,11 +35,7 @@ createList (owner: User, name: String, startTime: Time?, endTime: Time?, autoCle
     if both startTime and endTime are provided, startTime <= endTime
     if recurrenceType is not none, both startTime and endTime must be provided
   **effects**
-    A new list is created with the provided name, owner, and settings. If time boundaries are provided, the list is scoped to that time range. The autoClearCompleted flag determines whether completed items are automatically cleared. The recurrenceType determines if and how the list recreates itself. The list starts with an empty set of items and is returned.
-
-createList (owner: User, name: String, startTime: Time?, endTime: Time?, autoClearCompleted: Boolean, recurrenceType: RecurrenceType): (error: String)
-  **requires** exists L in Lists such that L.owner == owner and L.name == name
-  **effects** returns error message "A list with this name already exists for this user."
+    A new list is created with the provided name, owner, and settings. If time boundaries are not provided, startTime defaults to MIN_DATE and endTime defaults to MAX_DATE (making the list always active). If time boundaries are provided, the list is scoped to that time range. The autoClearCompleted flag determines whether completed items are automatically cleared. The recurrenceType determines if and how the list recreates itself. The list starts with an empty set of items and is returned.
 
 addListItem (list: List, item: Item, itemDueDate: Time?)
   **requires**
@@ -51,6 +50,11 @@ removeListItem (list: List, item: Item)
   **requires** list exists AND item is in list.items
   **effects**
     The item is removed from the list's set of items.
+
+markItemCompleted (list: List, item: Item, completed: Boolean)
+  **requires** list exists AND item is in list.items
+  **effects**
+    The completion status of the item in the list is updated to the provided value.
 
 deleteList (list: List)
   **requires** list exists
@@ -69,6 +73,36 @@ updateListSettings (list: List, autoClearCompleted: Boolean?, recurrenceType: Re
   **effects**
     If autoClearCompleted is provided, the list's autoClearCompleted flag is updated. If recurrenceType is provided, the list's recurrenceType is updated.
 
+**error actions**
+
+createList (owner: User, name: String, startTime: Time?, endTime: Time?, autoClearCompleted: Boolean, recurrenceType: RecurrenceType): (error: String)
+  **requires** name is empty OR exists L in Lists such that L.owner == owner and L.name == name OR (startTime and endTime provided and startTime > endTime) OR (recurrenceType is not none and startTime or endTime is missing)
+  **effects** returns error message describing the violation
+
+addListItem (list: List, item: Item, itemDueDate: Time?): (error: String)
+  **requires** list does not exist OR item is already in list.items OR (list has time constraints and itemDueDate is outside the list's time range)
+  **effects** returns error message describing the violation
+
+removeListItem (list: List, item: Item): (error: String)
+  **requires** list does not exist OR item is not in list.items
+  **effects** returns error message describing the violation
+
+markItemCompleted (list: List, item: Item, completed: Boolean): (error: String)
+  **requires** list does not exist OR item is not in list.items
+  **effects** returns error message describing the violation
+
+deleteList (list: List): (error: String)
+  **requires** list does not exist
+  **effects** returns error message "List with ID '...' not found."
+
+clearCompletedItems (list: List): (error: String)
+  **requires** list does not exist
+  **effects** returns error message "List with ID '...' not found."
+
+updateListSettings (list: List, autoClearCompleted: Boolean?, recurrenceType: RecurrenceType?): (error: String)
+  **requires** list does not exist OR (recurrenceType is provided and is not none and list does not have both startTime and endTime)
+  **effects** returns error message describing the violation
+
 **system actions**
 
 autoClearIfNeeded (list: List)
@@ -85,11 +119,14 @@ recreateRecurringList (list: List)
     list.recurrenceType is not none
     current time is after list.endTime
   **effects**
-    A new list is created with the same name, owner, autoClearCompleted, and recurrenceType settings. The new list's time range is calculated based on the recurrenceType:
-    - daily: new startTime is list.endTime + 1 day, new endTime is list.endTime + 1 day
-    - weekly: new startTime is list.endTime + 1 week, new endTime is list.endTime + 1 week
-    - monthly: new startTime is list.endTime + 1 month, new endTime is list.endTime + 1 month
-    All uncompleted items from the old list are carried over to the new list.The original list remains unchanged (archived).
+    A new list is created with the same name, owner, autoClearCompleted, and recurrenceType settings. The new list's time range is calculated based on the recurrenceType while maintaining the original list's duration:
+    - daily: new startTime is list.endTime + 1 day, new endTime is newStartTime + original duration
+    - weekly: new startTime is list.endTime + 1 week, new endTime is newStartTime + original duration
+    - monthly: new startTime is list.endTime + 1 month, new endTime is newStartTime + original duration
+
+    Where original duration = list.endTime - list.startTime.
+
+    All uncompleted items from the old list are carried over to the new list with their due dates adjusted by the time shift between the old and new list start times. The original list remains unchanged (archived).
 
 **queries**
 
@@ -99,11 +136,17 @@ getListsForUser (user: User): (lists: set of List)
     Returns the set of all lists owned by the specified user.
 
 getListByName (user: User, name: String): (list: List)
-  **requires** user is valid, name is non-empty
+  **requires** user is valid, name is non-empty, list with name exists for user
   **effects**
-    Returns the list with the specified name owned by the user, or error if not found.
+    Returns the list with the specified name owned by the user.
 
 getActiveListsForUser (user: User): (lists: set of List)
   **requires** user is valid
   **effects**
-    Returns the set of all lists owned by the user where current time is between startTime and endTime (or time range is not set).
+    Returns the set of all lists owned by the user where current time is between startTime and endTime (inclusive). Lists created without explicit time ranges use MIN_DATE/MAX_DATE and are always active.
+
+**query errors**
+
+getListByName (user: User, name: String): (error: String)
+  **requires** name is empty OR list with name does not exist for user
+  **effects** returns error message describing the violation
