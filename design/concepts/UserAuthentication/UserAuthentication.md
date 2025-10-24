@@ -78,6 +78,10 @@ storeCredential (sessionToken: String, credentialType: String, credentialValue: 
   **requires** not (exists s in activeSessions where s.sessionToken = sessionToken)
   **effects** return error := "Invalid session token"
 
+storeCredential (sessionToken: String, credentialType: String, credentialValue: String): (error: String)
+  **requires** exists s in activeSessions where s.sessionToken = sessionToken AND credentialType is an empty string
+  **effects** return error := "Credential type cannot be empty"
+
 retrieveCredential (sessionToken: String, credentialType: String): (credentialValue: String)
   **requires**
     exists s in activeSessions where s.sessionToken = sessionToken and
@@ -107,6 +111,14 @@ updateCredential (sessionToken: String, credentialType: String, newCredentialVal
 updateCredential (sessionToken: String, credentialType: String, newCredentialValue: String): (error: String)
   **requires** not (exists s in activeSessions where s.sessionToken = sessionToken)
   **effects** return error := "Invalid session token"
+
+updateCredential (sessionToken: String, credentialType: String, newCredentialValue: String): (error: String)
+  **requires** exists s in activeSessions where s.sessionToken = sessionToken AND credentialType is an empty string
+  **effects** return error := "Credential type cannot be empty"
+
+updateCredential (sessionToken: String, credentialType: String, newCredentialValue: String): (error: String)
+  **requires** exists s in activeSessions where s.sessionToken = sessionToken AND (let user_found be s.user where s.sessionToken = sessionToken AND not (user_found.additionalCredentials contains key credentialType))
+  **effects** return error := "Credential type not found for this user"
 
 deleteCredential (sessionToken: String, credentialType: String): (success: Boolean)
   **requires**

@@ -1,4 +1,5 @@
-// src/concepts/AIPrioritizedTaskConcept.ts
+// src/concepts/AIPrioritizedTask/AIPrioritizedTaskConcept.ts
+// Concept implementation for AI-enhanced task prioritization
 
 import { Collection, Db } from "npm:mongodb";
 import { Empty, ID } from "@utils/types.ts";
@@ -211,10 +212,10 @@ Return ONLY the JSON object, no additional text or explanation.`;
   ): number {
     const timeBasedScore = this._calculateTimeBasedPriority(dueDate, overdue);
 
-    // Weights from specification
-    const importanceWeight = 50;  // High importance impact
-    const difficultyWeight = 30;  // Moderate difficulty impact
-    const effortWeight = 100;     // Inverse effort to prioritize quick wins
+    // Weights from specification for AI-enhanced priority calculation
+    const importanceWeight = 50;  // Weight for task importance (scale 1-10)
+    const difficultyWeight = 30;  // Weight for task difficulty (scale 1-10)
+    const effortWeight = 100;     // Weight for inverse effort to prioritize quick wins
 
     const aiScoreComponent = (importance * importanceWeight) +
       (difficulty * difficultyWeight) +
@@ -323,7 +324,8 @@ Return ONLY the JSON object, no additional text or explanation.`;
     }
 
     const newTaskId: Task = freshID() as Task;
-    const initialPriority = this._calculateTimeBasedPriority(dueDate, false); // Initialize with time-based priority
+    // Initialize with time-based priority; AI-enhanced priority will be calculated after task creation
+    const initialPriority = this._calculateTimeBasedPriority(dueDate, false);
 
     const newTaskDoc: TaskDocument = {
       _id: newTaskId,
@@ -483,13 +485,6 @@ Return ONLY the JSON object, no additional text or explanation.`;
     }
 
     // Effects: Mark completed, set priority to 0, clear AI attributes
-    taskDoc.completed = true;
-    taskDoc.priorityScore = 0;
-    taskDoc.inferredEffortHours = null;
-    taskDoc.inferredImportance = null;
-    taskDoc.inferredDifficulty = null;
-    taskDoc.lastPriorityCalculationTime = new Date(); // Update calculation time even for completion
-
     await this.tasks.updateOne(
       { _id: taskId },
       {
@@ -499,7 +494,6 @@ Return ONLY the JSON object, no additional text or explanation.`;
           inferredEffortHours: null,
           inferredImportance: null,
           inferredDifficulty: null,
-          lastPriorityCalculationTime: taskDoc.lastPriorityCalculationTime,
         },
       },
     );

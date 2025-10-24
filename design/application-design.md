@@ -8,6 +8,7 @@ TaskMate is an AI-enhanced task management application that combines time-based 
 - **[AIPrioritizedTask](concepts/AIPrioritizedTask/AIPrioritizedTask.md)** - Task management with AI-powered priority calculation
 - **[TodoList](concepts/TodoList/TodoList.md)** - Organize tasks into named collections
 - **[UserAuthentication](concepts/UserAuthentication/UserAuthentication.md)** - User auth and credential storage
+- **[ExternalAssignmentSync](concepts/ExternalAssignmentSync/ExternalAssignmentSync.md)** - Import and sync assignments from external platforms (Canvas, GitHub, etc.)
 
 
 
@@ -15,24 +16,11 @@ TaskMate is an AI-enhanced task management application that combines time-based 
 
 ### Moment 1: Context Tool Generated Placeholder LLM Implementation
 
-**Context**: Generated implementation from [AIPrioritizedTask specification](concepts/AIPrioritizedTask/AIPrioritizedTask.md)
+**Context**: [Initial AIPrioritizedTask Implementation](../context/design/concepts/AIPrioritizedTask/implementation.md/steps/response.b719b45c.md)
 
-**What Happened**: When the Context tool generated the TypeScript implementation for AIPrioritizedTask, it created a placeholder `_triggerLLMInference` function that returned mock values instead of actually calling the Gemini API. The generated code had `// TODO: Implement actual LLM integration` comments.
+**What Happened**: When the Context tool generated the TypeScript implementation for AIPrioritizedTask, it created a placeholder `_triggerLLMInference` function that returned mock values instead of actually calling the Gemini API. It was interesting that the Context tool couldn't create the code to call the Gemini API but was able to create a temporary placeholder.
 
-**Challenge**: The auto-generated code couldn't know the specific details of our Gemini LLM integration from the previous assignment (intro-gemini-schedule), including the exact API structure, prompt engineering approach, and response parsing logic.
-
-**Solution**: Manually integrated the real LLM calling code from intro-gemini-schedule:
-- Copied `gemini-llm.ts` utility file to the AIPrioritizedTask folder
-- Replaced the mock `_triggerLLMInference` with actual Gemini API calls
-- Added the `_createAttributePrompt` method with specific prompt engineering for task attribute inference
-- Fixed environment variable access for Deno runtime compatibility
-- Updated priority calculation weights to match specification (50/30/100 with inverse effort)
-
-**Outcome**: Successfully integrated real AI capabilities while preserving the generated code structure. The implementation now makes actual LLM calls to infer task effort, importance, and difficulty, with proper validation and fallback to time-based priority.
-
-**Lessons Learned**: The Context tool excels at generating correct architectural structure and type signatures from specifications, but domain-specific implementation details (like third-party API integrations) need to be manually added. This hybrid approach—Context for structure, manual for specifics—proved effective.
-
-
+**Solution**: Manually integrated the real LLM calling code from Assignment 3 and updated priority calculation weights to match specification.
 
 ### Moment 2: Context-Generated Tests Required Manual Corrections
 
@@ -46,14 +34,13 @@ TaskMate is an AI-enhanced task management application that combines time-based 
 
 
 
-### Moment 3: Spec Ambiguity Discovered During Implementation Review
+### Moment 3: Spec Ambiguity During Implementation Review
 
 **Context**: [Initial Implementation](../context/design/concepts/TodoList/implementation.md/steps/file.3147a341.md)
 
 **What Happened**: After askign Context to implement the spec, realized `recreateRecurringList` specification was ambiguous, "new startTime is list.endTime + 1 day, new endTime is list.endTime + 1 day" literally meant both times are identical, creating zero-duration lists.
 
 **Solution**: Revised Spec now unambiguous with duration formula documented. All 7 actions (including new markItemCompleted) properly implemented.
-
 
 
 ### Moment 4: Context-Generated Implementation Included Error Handling Missing from Spec
@@ -65,11 +52,45 @@ TaskMate is an AI-enhanced task management application that combines time-based 
 **Solution**: Added error action sections to specification for all 7 actions and 3 queries, documenting when each returns error messages versus success values. (Added at end of spec for clarity)
 
 
-
 ### Moment 5: Context-Generated TodoList Tests Had Missing Edge Cases
 
 **Context**: [Initial Test Cases](../context/design/concepts/TodoList/testing.md/steps/file.563499c9.md)
 
-**What Happened**: Context generated nested `test.step()` test cases again, just like before, which seems to indicate that Context is unaware of the fact that it needs to produce multiple Deno.test cases. Was also missing a few edge cases, eg. all items completed, weekly/monthly occurence, etc. 
+**What Happened**: Context generated nested `test.step()` test cases again, just like before, which seems to indicate that Context is unaware of the fact that it needs to produce multiple Deno.test cases. Was also missing a few edge cases, eg. all items completed, weekly/monthly occurence, etc.
 
 **Solution**: Rewrite to separate `Deno.test()` calls. Added missing edge case tests.
+
+
+
+### Moment 6: Context Created Password Utility Instead of Separate Concept
+
+**What Happened**: When implementing UserAuthentication, Context generated password hashing/comparison functions as a utility module (`src/utils/password.ts`) rather than as a separate Password concept.
+
+**Decision**: Kept the utility approach. Password hashing is stateless transformation logic (hash input → output), not a concept with independent state and operational principle. It's appropriately abstracted as a utility used by UserAuthentication.
+
+**Lessons Learned**: Not everything needs to be a concept. Security utilities like password hashing are implementation details that support concepts without being concepts themselves.
+
+
+
+### Moment 7: Context Suggested Non-Existent bcrypt Module Version
+
+**What Happened**: Context's implementation.md suggested importing `https://deno.land/x/bcrypt@v1.1.0/mod.ts` for password hashing, but this version doesn't exist. Running tests caused "Cannot find module" error.
+
+**Solution**: After searching around, switched to `npm:bcryptjs@2.4.3` (pure JavaScript bcrypt implementation) instead of native bcrypt. Added to deno.json import map and updated password.ts to use bcryptjs API.
+
+
+
+### Moment 8: Context Generated Placeholder External API Implementation
+
+**What Happened**: When implementing ExternalAssignmentSync, Context initially generated `pollExternalSource` with hardcoded mock assignment data rather than actual external API calls. Similar to the LLM placeholder in Moment 1, Context created a skeleton implementation but couldn't integrate with real external APIs.
+
+**Decision**: I decided to implement real Canvas API integration only for now. Since Github, Catsoop, Gradescope, etc. all have different APIs, authentication methods, and data structures, it would be really difficult to create a generic implementation. For now, using Canvas integration shows that the ExternalAssignmentSync concept works correctly.
+
+**Solution**: Created dedicated `canvas-api.ts` utility with functions to validate credentials, fetch courses, and fetch assignments from Canvas LMS. Replaced mock data in `pollExternalSource` with real Canvas API calls that convert Canvas assignment format to the concept's internal `ExternalAssignmentDetails` structure.
+
+
+### Moment 9: Canvas API Returned Too Many Old Assignments
+
+**What Happened**: First test fetched 69 assignments including 2021-2023 courses. Canvas returns all historical courses/assignments by default.
+
+**Solution**: Added two-level filtering: (1) `enrollment_state=active` for current courses only, (2) date filter for assignments from last 6 months or with future due dates.

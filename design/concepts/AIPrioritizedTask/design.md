@@ -1,26 +1,26 @@
-# AIPrioritizedTask - Design Decisions
+# AIPrioritizedTask - Design Changes
 
-## Design Decision 1: Single Integrated Concept
+## Design Change 1: Single Integrated Concept
 **Decision**: Combined task management, AI estimation, and priority calculation in one concept instead of splitting into separate Task, Priority, and Assigner concepts from Assignment 2.
 
 **Rationale**: Reuses existing work from intro-gemini-schedule, reduces coordination complexity, and AI prioritization is fundamentally tied to task attributes.
 
-## Design Decision 2: System Actions for Automated Updates
+## Design Change 2: System Actions for Automated Updates
 **Decision**: Include system actions (`markOverdue`, `calculateTaskPriority`) that run automatically without user interaction.
 
 **Rationale**: Priority must update as time passes, and overdue status must be automatically set when due date is reached.
 
-## Design Decision 3: Priority Formula
+## Design Change 3: Priority Formula
 **Decision**: `priorityScore = timeBasedScore + (importance × 50) + (difficulty × 30) + (1/effort × 100)`
 
 **Rationale**: Previously, I used effort rather than 1/effort. But low effort, high stakes tasks should be prioritized first, so I inverted the effort score.
 
-## Design Decision 4: Snooze Resets Overdue Status
+## Design Change 4: Snooze Resets Overdue Status
 **Decision**: When task is snoozed, `overdue` flag is set to false.
 
 **Rationale**: User explicitly deferred task, so overdue status no longer applies. Prevents confusing UX where snoozed tasks still show "overdue".
 
-## Design Decision 5: Clear AI Attributes on Completion
+## Design Change 5: Clear AI Attributes on Completion
 **Decision**: When task is completed, set all AI-inferred attributes to null and priority to 0.
 
 **Rationale**: Completed tasks don't need prioritization, reduces storage overhead, prevents confusion if task is uncompleted later.

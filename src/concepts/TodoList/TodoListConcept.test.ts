@@ -1,18 +1,22 @@
+// src/concepts/TodoList/TodoListConcept.test.ts
+// Test suite for time-scoped list organization concept
+
 import { assertEquals, assertExists, assert } from "jsr:@std/assert";
 import { testDb } from "@utils/database.ts";
 import { ID } from "@utils/types.ts";
 import TodoListConcept from "./TodoListConcept.ts";
 
-// Helper function to create unique user IDs for test isolation
+// Helper functions to create unique IDs for test isolation
+// These ensure each test uses unique users and items to prevent state conflicts
 let userCounter = 0;
 const createTestUser = () => `user:TestUser${++userCounter}` as ID;
 
-// Helper function to create unique item IDs
 let itemCounter = 0;
 const createTestItem = () => `item:TestItem${++itemCounter}` as ID;
 
 // ============================================================================
 // OPERATIONAL PRINCIPLE TEST
+// Tests the complete lifecycle: create list, add items, auto-clear, and recurrence
 // ============================================================================
 
 Deno.test("Operational Principle: Create time-scoped list with auto-clear and recurrence", async () => {

@@ -1,15 +1,17 @@
-// src/concepts/AIPrioritizedTaskConcept.test.ts
+// src/concepts/AIPrioritizedTask/AIPrioritizedTaskConcept.test.ts
+// Test suite for AI-enhanced task prioritization concept
 
 import { assert, assertEquals, assertNotEquals, assertExists } from "jsr:@std/assert";
 import { testDb } from "@utils/database.ts";
 import { ID } from "@utils/types.ts";
 import AIPrioritizedTaskConcept from "./AIPrioritizedTaskConcept.ts";
 
-// Define test users
+// Define test users for isolation
 const userA: ID = "user:Alice" as ID;
 const userB: ID = "user:Bob" as ID;
 
-// Helper functions
+// Helper functions for date manipulation in tests
+// These create dates relative to the current time for testing time-based priority calculations
 const futureDate = (days: number) => {
   const date = new Date();
   date.setDate(date.getDate() + days);
@@ -24,6 +26,7 @@ const pastDate = (daysAgo: number) => {
 
 // ============================================================================
 // OPERATIONAL PRINCIPLE TEST
+// Tests the complete lifecycle workflow demonstrating the concept's core behavior
 // ============================================================================
 
 Deno.test("Operational Principle: Create → Update → Prioritize → Complete workflow", async () => {

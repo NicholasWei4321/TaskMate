@@ -1,3 +1,6 @@
+// src/concepts/TodoList/TodoListConcept.ts
+// Concept implementation for organizing items into time-scoped collections
+
 import { Collection, Db } from "npm:mongodb";
 import { Empty, ID } from "@utils/types.ts";
 import { freshID } from "@utils/database.ts";
@@ -47,7 +50,9 @@ interface ListDocument {
 // if startTime and endTime are both set, startTime must be before or equal to endTime (enforced in createList and updateListSettings)
 // if recurrenceType is not none, both startTime and endTime must be set (enforced in createList and updateListSettings)
 
-// Helper functions for date arithmetic for recurrence calculations
+// Helper functions for date arithmetic used in recurring list calculations
+// These functions create new Date objects without mutating the original
+
 function addDays(date: Time, days: number): Time {
   const newDate = new Date(date);
   newDate.setDate(newDate.getDate() + days);
@@ -84,8 +89,9 @@ export default class TodoListConcept {
   lists: Collection<ListDocument>;
 
   // Default date constants for lists without explicit time ranges
-  private static readonly MIN_DATE = new Date(0); // Unix epoch: January 1, 1970
-  private static readonly MAX_DATE = new Date('9999-12-31T23:59:59.999Z'); // December 31, 9999
+  // These allow lists to be "always active" when no time boundaries are specified
+  private static readonly MIN_DATE = new Date(0); // Unix epoch: January 1, 1970 00:00:00 UTC
+  private static readonly MAX_DATE = new Date('9999-12-31T23:59:59.999Z'); // December 31, 9999 23:59:59.999 UTC
 
   constructor(private readonly db: Db) {
     this.lists = this.db.collection(PREFIX + "lists");

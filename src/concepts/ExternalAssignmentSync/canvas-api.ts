@@ -1,0 +1,179 @@
+// src/concepts/ExternalAssignmentSync/canvas-api.ts
+
+/**
+ * Canvas API Integration Utility
+ *
+ * Provides functions to interact with the Canvas LMS API
+ * Documentation: https://canvas.instructure.com/doc/api/
+ */
+
+export interface CanvasAssignment {
+  id: number;
+  name: string;
+  description: string | null;
+  due_at: string | null; // ISO 8601 date string
+  updated_at: string; // ISO 8601 date string
+  points_possible: number | null;
+  course_id: number;
+}
+
+export interface CanvasCourse {
+  id: number;
+  name: string;
+}
+
+/**
+ * Fetches active/current courses for the authenticated user from Canvas
+ * Only returns courses where the user is currently enrolled
+ */
+export async function fetchCanvasCourses(
+  baseUrl: string,
+  apiToken: string,
+): Promise<CanvasCourse[]> {
+  // Filter for active enrollments only
+  // enrollment_state=active means currently enrolled courses
+  const url = `${baseUrl}/api/v1/courses?enrollment_state=active&per_page=100`;
+
+  const response = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${apiToken}`,
+      'Accept': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('INVALID_CREDENTIALS');
+    } else if (response.status === 429) {
+      throw new Error('RATE_LIMIT');
+    } else if (response.status >= 500) {
+      throw new Error('NETWORK_ERROR');
+    }
+    throw new Error(`Canvas API error: ${response.status}`);
+  }
+
+  return await response.json();
+}
+
+/**
+ * Fetches recent assignments from active courses for the authenticated user
+ * Filters to only include assignments from the last 6 months or with future due dates
+ */
+export async function fetchCanvasAssignments(
+  baseUrl: string,
+  apiToken: string,
+): Promise<CanvasAssignment[]> {
+  try {
+    // First, get only active courses
+    const courses = await fetchCanvasCourses(baseUrl, apiToken);
+
+    // Then fetch assignments for each course
+    const allAssignments: CanvasAssignment[] = [];
+
+    // Only get assignments from the last 6 months
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    for (const course of courses) {
+      // Canvas API endpoint for course assignments
+      const url = `${baseUrl}/api/v1/courses/${course.id}/assignments?per_page=100`;
+
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${apiToken}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('INVALID_CREDENTIALS');
+        } else if (response.status === 429) {
+          throw new Error('RATE_LIMIT');
+        } else if (response.status >= 500) {
+          throw new Error('NETWORK_ERROR');
+        }
+        // Skip this course if there's an error but continue with others
+        console.warn(`Failed to fetch assignments for course ${course.id}: ${response.status}`);
+        continue;
+      }
+
+      const assignments: CanvasAssignment[] = await response.json();
+
+      // Filter to only include recent assignments
+      const recentAssignments = assignments.filter(assignment => {
+        // Include if it has a due date in the future or within last 6 months
+        if (assignment.due_at) {
+          const dueDate = new Date(assignment.due_at);
+          return dueDate >= sixMonthsAgo;
+        }
+        // For assignments without due dates, check updated_at timestamp
+        const updatedDate = new Date(assignment.updated_at);
+        return updatedDate >= sixMonthsAgo;
+      });
+
+      allAssignments.push(...recentAssignments);
+    }
+
+    return allAssignments;
+  } catch (error) {
+    // Re-throw known error types
+    if (error instanceof Error &&
+        (error.message === 'INVALID_CREDENTIALS' ||
+         error.message === 'RATE_LIMIT' ||
+         error.message === 'NETWORK_ERROR')) {
+      throw error;
+    }
+
+    // Network/connection errors
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error('NETWORK_ERROR');
+    }
+
+    throw error;
+  }
+}
+
+/**
+ * Validates Canvas API credentials by attempting to fetch user info
+ * Used during connectSource to verify credentials before storing them
+ */
+export async function validateCanvasCredentials(
+  baseUrl: string,
+  apiToken: string,
+): Promise<boolean> {
+  try {
+    const url = `${baseUrl}/api/v1/users/self`;
+
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${apiToken}`,
+        'Accept': 'application/json',
+      },
+    });
+
+    if (response.status === 401) {
+      // Consume response body to prevent resource leak
+      await response.text();
+      return false; // Invalid credentials
+    }
+
+    if (!response.ok && response.status >= 500) {
+      await response.text();
+      throw new Error('NETWORK_ERROR');
+    }
+
+    // Consume response body to prevent resource leak
+    await response.json();
+    return response.ok;
+  } catch (error) {
+    // Network errors should be thrown, not returned as false
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error('NETWORK_ERROR');
+    }
+    if (error instanceof Error && error.message === 'NETWORK_ERROR') {
+      throw error;
+    }
+    return false;
+  }
+}

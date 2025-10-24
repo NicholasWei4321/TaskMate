@@ -1,0 +1,21 @@
+---
+timestamp: 'Thu Oct 23 2025 20:44:44 GMT-0400 (Eastern Daylight Time)'
+parent: '[[../20251023_204444.4fdb6a12.md]]'
+content_id: cd7b73d437b84685adddb1884691b9eff85f65067bd163e8bf2683b0870c12c1
+---
+
+# file: deno.json
+
+```json
+{
+    "nodeModulesDir": "auto",
+    "imports": {
+        "@concepts/": "./src/concepts/",
+        "@utils/": "./src/utils/",
+        "bcrypt": "npm:bcryptjs@2.4.3"
+    },
+    "tasks": {
+        "concepts": "deno run --allow-net --allow-read --allow-sys --allow-env src/concept_server.ts --port 8000 --baseUrl /api"
+    }
+}
+```

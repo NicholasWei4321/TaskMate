@@ -1,7 +1,7 @@
 # UserAuthentication - Design Decisions
 
 ## Overview
-This document explains the key design decisions made during the development of the UserAuthentication concept.
+This document explains the key design decisions made during the development of the UserAuthentication concept. This is a brand new concept that I created that did not exist in Assignment 2.
 
 ## Design Decision 1: Password Hashing
 
@@ -27,26 +27,9 @@ This document explains the key design decisions made during the development of t
 
 **Implementation**: Use encrypted key-value map where key is credential type (e.g., "Canvas") and value is encrypted credential string.
 
-## Design Decision 4: Credential Management
-
-**Decision**: Provide full CRUD operations for credentials: store, retrieve, update, delete, and list types.
-
-**Rationale**: Users need to manage their stored credentials (update when passwords change, remove unused ones, see what's stored).
-
-**Implementation**: Actions require valid session token and operate on user's `additionalCredentials` map.
-
-## Design Decision 5: No Session Expiration
+## Design Decision 4: No Session Expiration
 
 **Decision**: Sessions persist indefinitely until explicit logout.
 
 **Rationale**: Keeps implementation simple; persistent sessions acceptable for student use case.
 
-**Implementation**: Sessions only removed via logout action; no automatic timeout or cleanup.
-
-## Design Decision 7: Username Uniqueness
-
-**Decision**: Usernames must be globally unique across all users.
-
-**Rationale**: Simplifies authentication and prevents user confusion.
-
-**Implementation**: Database unique index on username field; registration checks before creating user.
