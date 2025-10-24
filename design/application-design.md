@@ -64,6 +64,8 @@ TaskMate is an AI-enhanced task management application that combines time-based 
 
 ### Moment 6: Context Created Password Utility Instead of Separate Concept
 
+**Context**: [Password Implementation](../context/src/utils/password.ts/20251023_235144.fc7fd8c8.md)
+
 **What Happened**: When implementing UserAuthentication, Context generated password hashing/comparison functions as a utility module (`src/utils/password.ts`) rather than as a separate Password concept.
 
 **Decision**: Kept the utility approach. Password hashing is stateless transformation logic (hash input → output), not a concept with independent state and operational principle. It's appropriately abstracted as a utility used by UserAuthentication.
@@ -74,6 +76,8 @@ TaskMate is an AI-enhanced task management application that combines time-based 
 
 ### Moment 7: Context Suggested Non-Existent bcrypt Module Version
 
+**Context**: [Initial Implementation](../context/design/concepts/UserAuthentication/implementation.md/steps/file.6618ede0.md)
+
 **What Happened**: Context's implementation.md suggested importing `https://deno.land/x/bcrypt@v1.1.0/mod.ts` for password hashing, but this version doesn't exist. Running tests caused "Cannot find module" error.
 
 **Solution**: After searching around, switched to `npm:bcryptjs@2.4.3` (pure JavaScript bcrypt implementation) instead of native bcrypt. Added to deno.json import map and updated password.ts to use bcryptjs API.
@@ -81,6 +85,8 @@ TaskMate is an AI-enhanced task management application that combines time-based 
 
 
 ### Moment 8: Context Generated Placeholder External API Implementation
+
+**Context**: [Placeholder Implementation](../context/design/concepts/ExternalAssignmentSync/implementation.md/steps/response.e9804296.md)
 
 **What Happened**: When implementing ExternalAssignmentSync, Context initially generated `pollExternalSource` with hardcoded mock assignment data rather than actual external API calls. Similar to the LLM placeholder in Moment 1, Context created a skeleton implementation but couldn't integrate with real external APIs.
 
@@ -90,6 +96,8 @@ TaskMate is an AI-enhanced task management application that combines time-based 
 
 
 ### Moment 9: Canvas API Returned Too Many Old Assignments
+
+**Context**: [Initial Canvas API Implementation](../context/src/concepts/ExternalAssignmentSync/canvas-api.ts/20251023_211528.c2889971.md)
 
 **What Happened**: First test fetched 69 assignments including 2021-2023 courses. Canvas returns all historical courses/assignments by default.
 
