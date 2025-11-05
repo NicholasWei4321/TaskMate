@@ -15,6 +15,10 @@ export interface CanvasAssignment {
   updated_at: string; // ISO 8601 date string
   points_possible: number | null;
   course_id: number;
+  html_url: string; // Direct link to the assignment
+  submission_types: string[]; // Types of submissions allowed (e.g., ["online_upload"], ["none"])
+  published: boolean; // Whether the assignment is published
+  has_submitted_submissions?: boolean; // Whether the user has submitted this assignment
 }
 
 export interface CanvasCourse {
@@ -70,13 +74,12 @@ export async function fetchCanvasAssignments(
     // Then fetch assignments for each course
     const allAssignments: CanvasAssignment[] = [];
 
-    // Only get assignments from the last 6 months
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const now = new Date();
 
     for (const course of courses) {
       // Canvas API endpoint for course assignments
-      const url = `${baseUrl}/api/v1/courses/${course.id}/assignments?per_page=100`;
+      // Include submissions to check if user has submitted
+      const url = `${baseUrl}/api/v1/courses/${course.id}/assignments?include[]=submission&per_page=100`;
 
       const response = await fetch(url, {
         headers: {
@@ -98,21 +101,64 @@ export async function fetchCanvasAssignments(
         continue;
       }
 
-      const assignments: CanvasAssignment[] = await response.json();
+      const assignments: any[] = await response.json();
 
-      // Filter to only include recent assignments
-      const recentAssignments = assignments.filter(assignment => {
-        // Include if it has a due date in the future or within last 6 months
-        if (assignment.due_at) {
-          const dueDate = new Date(assignment.due_at);
-          return dueDate >= sixMonthsAgo;
+      // Filter to only include relevant unfinished assignments
+      const unfinishedAssignments = assignments.filter(assignment => {
+        // Only include published assignments
+        if (!assignment.published) return false;
+
+        // Exclude assignments with no submission type or "none" or "on_paper" or "external_tool"
+        // These are typically: attendance, readings, non-graded activities, or external links
+        const submissionTypes = assignment.submission_types || [];
+        const hasOnlineSubmission = submissionTypes.some(type =>
+          type === 'online_upload' ||
+          type === 'online_text_entry' ||
+          type === 'online_url' ||
+          type === 'online_quiz' ||
+          type === 'media_recording'
+        );
+
+        // Skip assignments that don't have online submission types
+        if (!hasOnlineSubmission) return false;
+
+        // Check if assignment has a due date
+        if (!assignment.due_at) return false;
+
+        const dueDate = new Date(assignment.due_at);
+
+        // Check submission status
+        // Canvas includes a 'submission' object with the assignment when we use include[]=submission
+        const submission = assignment.submission;
+
+        // Exclude assignments that have been submitted (workflow_state is anything other than 'unsubmitted')
+        // This matches Canvas's "Past" category - assignments where you've made a submission
+        // workflow_state can be: 'unsubmitted', 'submitted', 'graded', 'pending_review'
+        if (submission && submission.workflow_state !== 'unsubmitted') {
+          return false; // Already submitted, goes to "Past" in Canvas
         }
-        // For assignments without due dates, check updated_at timestamp
-        const updatedDate = new Date(assignment.updated_at);
-        return updatedDate >= sixMonthsAgo;
-      });
 
-      allAssignments.push(...recentAssignments);
+        // At this point, assignment is unsubmitted
+        // Include both:
+        // 1. Upcoming (due in the future) - matches Canvas "Upcoming Assignments"
+        // 2. Overdue (past due date) - matches Canvas "Overdue Assignments"
+        return true;
+      }).map(assignment => ({
+        id: assignment.id,
+        name: assignment.name,
+        description: assignment.html_url, // Use the assignment URL as the description
+        due_at: assignment.due_at,
+        updated_at: assignment.updated_at,
+        points_possible: assignment.points_possible,
+        course_id: assignment.course_id,
+        html_url: assignment.html_url,
+        submission_types: assignment.submission_types || [],
+        published: assignment.published || false,
+        has_submitted_submissions: assignment.submission?.workflow_state === 'submitted' ||
+                                     assignment.submission?.workflow_state === 'graded'
+      }));
+
+      allAssignments.push(...unfinishedAssignments);
     }
 
     return allAssignments;

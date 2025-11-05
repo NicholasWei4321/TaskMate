@@ -18,6 +18,38 @@ const BASE_URL = flags.baseUrl;
 const CONCEPTS_DIR = "src/concepts";
 
 /**
+ * Helper function to recursively convert ISO date strings to Date objects
+ */
+function convertDates(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+
+  if (typeof obj === 'string') {
+    // Check if string is an ISO date format
+    const isoDateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/;
+    if (isoDateRegex.test(obj)) {
+      return new Date(obj);
+    }
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(convertDates);
+  }
+
+  if (typeof obj === 'object') {
+    const converted: any = {};
+    for (const key in obj) {
+      converted[key] = convertDates(obj[key]);
+    }
+    return converted;
+  }
+
+  return obj;
+}
+
+/**
  * Main server function to initialize DB, load concepts, and start the server.
  */
 async function main() {
@@ -76,7 +108,11 @@ async function main() {
         app.post(route, async (c) => {
           try {
             const body = await c.req.json().catch(() => ({})); // Handle empty body
-            const result = await instance[methodName](body);
+
+            // Convert ISO date strings to Date objects
+            const processedBody = convertDates(body);
+
+            const result = await instance[methodName](processedBody);
             return c.json(result);
           } catch (e) {
             console.error(`Error in ${conceptName}.${methodName}:`, e);

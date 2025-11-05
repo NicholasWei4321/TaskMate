@@ -324,8 +324,13 @@ Return ONLY the JSON object, no additional text or explanation.`;
     }
 
     const newTaskId: Task = freshID() as Task;
+
+    // Check if the task is already overdue at creation time
+    const now = new Date();
+    const isOverdue = dueDate.getTime() < now.getTime();
+
     // Initialize with time-based priority; AI-enhanced priority will be calculated after task creation
-    const initialPriority = this._calculateTimeBasedPriority(dueDate, false);
+    const initialPriority = this._calculateTimeBasedPriority(dueDate, isOverdue);
 
     const newTaskDoc: TaskDocument = {
       _id: newTaskId,
@@ -334,7 +339,7 @@ Return ONLY the JSON object, no additional text or explanation.`;
       description,
       dueDate,
       completed: false,
-      overdue: false,
+      overdue: isOverdue, // Mark as overdue if due date is in the past
       inferredEffortHours: null,
       inferredImportance: null,
       inferredDifficulty: null,
@@ -362,11 +367,14 @@ Return ONLY the JSON object, no additional text or explanation.`;
    * After any updates, the system recalculates the task's priority and returns the updated task.
    */
   async updateTask(
-    { task: taskId, newName, newDescription, newDueDate }: {
+    { task: taskId, newName, newDescription, newDueDate, newEffort, newImportance, newDifficulty }: {
       task: Task;
       newName?: string;
       newDescription?: string;
       newDueDate?: Date;
+      newEffort?: number;
+      newImportance?: number;
+      newDifficulty?: number;
     },
   ): Promise<{ task: Task } | { error: string }> {
     const taskDoc = await this.tasks.findOne({ _id: taskId });
@@ -411,6 +419,31 @@ Return ONLY the JSON object, no additional text or explanation.`;
         updateFields.overdue = false; // Reset overdue status when due date changes
         shouldRecalculatePriority = true; // Due date change definitely affects priority
       }
+    }
+
+    // Validate and update AI-inferred fields
+    if (newEffort !== undefined) {
+      if (newEffort < 0.5 || newEffort > 40) {
+        return { error: "Effort must be between 0.5 and 40 hours." };
+      }
+      updateFields.inferredEffortHours = newEffort;
+      shouldRecalculatePriority = true;
+    }
+
+    if (newImportance !== undefined) {
+      if (!Number.isInteger(newImportance) || newImportance < 1 || newImportance > 10) {
+        return { error: "Importance must be an integer between 1 and 10." };
+      }
+      updateFields.inferredImportance = newImportance;
+      shouldRecalculatePriority = true;
+    }
+
+    if (newDifficulty !== undefined) {
+      if (!Number.isInteger(newDifficulty) || newDifficulty < 1 || newDifficulty > 10) {
+        return { error: "Difficulty must be an integer between 1 and 10." };
+      }
+      updateFields.inferredDifficulty = newDifficulty;
+      shouldRecalculatePriority = true;
     }
 
     if (Object.keys(updateFields).length > 0) {

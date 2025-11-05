@@ -356,6 +356,92 @@ export default class TodoListConcept {
    * If autoClearCompleted is provided, the list's autoClearCompleted flag is updated.
    * If recurrenceType is provided, the list's recurrenceType is updated.
    */
+  /**
+   * updateList (list: List, newName?: string, newStartTime?: Time, newEndTime?: Time, newAutoClearCompleted?: boolean, newRecurrenceType?: RecurrenceType)
+   *
+   * **requires** `list` exists. If `newName` is provided, it must be unique for the owner. If time constraints are provided, they must be valid.
+   *
+   * **effects**
+   * Updates the specified list with the provided values. Returns the updated list ID or an error if validation fails.
+   */
+  async updateList(
+    { list, newName, newStartTime, newEndTime, newAutoClearCompleted, newRecurrenceType }: {
+      list: List;
+      newName?: string;
+      newStartTime?: Date;
+      newEndTime?: Date;
+      newAutoClearCompleted?: boolean;
+      newRecurrenceType?: RecurrenceType;
+    },
+  ): Promise<{ list: List } | { error: string }> {
+    const existingList = await this.lists.findOne({ _id: list });
+    if (!existingList) {
+      return { error: `List with ID '${list}' not found.` };
+    }
+
+    const update: Partial<ListDocument> = {};
+
+    // Update name if provided
+    if (newName !== undefined && newName !== existingList.name) {
+      const duplicate = await this.lists.findOne({
+        owner: existingList.owner,
+        name: newName,
+        _id: { $ne: list },
+      });
+      if (duplicate) {
+        return { error: `List with name '${newName}' already exists for this owner.` };
+      }
+      update.name = newName;
+    }
+
+    // Update times if provided
+    const startTime = newStartTime !== undefined ? newStartTime : existingList.startTime;
+    const endTime = newEndTime !== undefined ? newEndTime : existingList.endTime;
+
+    if (newStartTime !== undefined) {
+      update.startTime = newStartTime;
+    }
+    if (newEndTime !== undefined) {
+      update.endTime = newEndTime;
+    }
+
+    // Validate time constraints
+    if (startTime.getTime() > endTime.getTime()) {
+      return { error: "Start time must be before or equal to end time." };
+    }
+
+    // Update autoClearCompleted if provided
+    if (newAutoClearCompleted !== undefined) {
+      update.autoClearCompleted = newAutoClearCompleted;
+    }
+
+    // Update recurrenceType if provided
+    if (newRecurrenceType !== undefined) {
+      const hasDefaultDates = this.hasDefaultDates({
+        ...existingList,
+        startTime,
+        endTime,
+      });
+      if (newRecurrenceType !== "none" && hasDefaultDates) {
+        return {
+          error:
+            "For recurring lists, both start time and end time must be set if recurrenceType is not 'none'.",
+        };
+      }
+      update.recurrenceType = newRecurrenceType;
+    }
+
+    // Only perform update if there are changes to apply
+    if (Object.keys(update).length > 0) {
+      await this.lists.updateOne(
+        { _id: list },
+        { $set: update },
+      );
+    }
+
+    return { list };
+  }
+
   async updateListSettings(
     { list, autoClearCompleted, recurrenceType }: {
       list: List;
