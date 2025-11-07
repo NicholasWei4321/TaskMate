@@ -231,7 +231,7 @@ Return ONLY the JSON object, no additional text or explanation.`;
    *
    * @param taskDoc The current TaskDocument to recalculate priority for.
    */
-  private async _recalculateAndSavePriority(taskDoc: TaskDocument): Promise<void> {
+  private async _recalculateAndSavePriority(taskDoc: TaskDocument, skipLLMInference = false): Promise<void> {
     const updateFields: Partial<TaskDocument> = {};
 
     if (taskDoc.completed) {
@@ -240,6 +240,15 @@ Return ONLY the JSON object, no additional text or explanation.`;
       updateFields.inferredEffortHours = null;
       updateFields.inferredImportance = null;
       updateFields.inferredDifficulty = null;
+    } else if (skipLLMInference && taskDoc.inferredEffortHours !== null && taskDoc.inferredImportance !== null && taskDoc.inferredDifficulty !== null) {
+      // User manually edited AI attributes - use existing values without calling LLM
+      updateFields.priorityScore = this._calculateAIPriority(
+        taskDoc.dueDate,
+        taskDoc.overdue,
+        taskDoc.inferredEffortHours,
+        taskDoc.inferredImportance,
+        taskDoc.inferredDifficulty,
+      );
     } else {
       const inferred = await this._triggerLLMInference(taskDoc.name, taskDoc.description, taskDoc.dueDate);
 
@@ -384,6 +393,7 @@ Return ONLY the JSON object, no additional text or explanation.`;
 
     const updateFields: Partial<TaskDocument> = {};
     let shouldRecalculatePriority = false;
+    let manuallyEditedAIAttributes = false;
 
     // Requires: newName validation
     if (newName !== undefined) {
@@ -428,6 +438,7 @@ Return ONLY the JSON object, no additional text or explanation.`;
       }
       updateFields.inferredEffortHours = newEffort;
       shouldRecalculatePriority = true;
+      manuallyEditedAIAttributes = true;
     }
 
     if (newImportance !== undefined) {
@@ -436,6 +447,7 @@ Return ONLY the JSON object, no additional text or explanation.`;
       }
       updateFields.inferredImportance = newImportance;
       shouldRecalculatePriority = true;
+      manuallyEditedAIAttributes = true;
     }
 
     if (newDifficulty !== undefined) {
@@ -444,6 +456,7 @@ Return ONLY the JSON object, no additional text or explanation.`;
       }
       updateFields.inferredDifficulty = newDifficulty;
       shouldRecalculatePriority = true;
+      manuallyEditedAIAttributes = true;
     }
 
     if (Object.keys(updateFields).length > 0) {
@@ -455,7 +468,8 @@ Return ONLY the JSON object, no additional text or explanation.`;
 
     // Effects: Recalculate priority if relevant fields changed
     if (shouldRecalculatePriority) {
-      await this._recalculateAndSavePriority(taskDoc);
+      // Skip LLM inference if user manually edited AI attributes
+      await this._recalculateAndSavePriority(taskDoc, manuallyEditedAIAttributes);
     }
 
     return { task: taskId };

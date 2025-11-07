@@ -102,3 +102,60 @@ TaskMate is an AI-enhanced task management application that combines time-based 
 **What Happened**: First test fetched 69 assignments including 2021-2023 courses. Canvas returns all historical courses/assignments by default.
 
 **Solution**: Added two-level filtering: (1) `enrollment_state=active` for current courses only, (2) date filter for assignments from last 6 months or with future due dates.
+
+
+## Backend Implementation Updates
+
+### Recurring List Auto-Recreation System
+
+**Implementation**: Added automatic recurring list recreation system to TodoList concept to handle daily/weekly/monthly to-do lists.
+
+**Changes**:
+- Added `processRecurringLists()` helper method that:
+  - Finds all expired recurring lists (where `endTime < current time`)
+  - Checks if successor list already exists (prevents duplicates on page refresh)
+  - Auto-clears completed items if `autoClearCompleted` is enabled
+  - Calls `recreateRecurringList()` to create new list for next period
+- Integrated into `getListsForUser()` and `getActiveListsForUser()` queries to automatically process on every fetch
+- Fixed time calculation bug: Changed from `newStartTime = oldEndTime + 1 period` to `newStartTime = oldStartTime + 1 period` for continuous coverage
+
+**Rationale**: The `recreateRecurringList()` and `autoClearIfNeeded()` system actions existed but were never called. Without automated triggering, daily lists would expire and never refresh.
+
+### Default List Deletion Protection
+
+**Implementation**: Added protection to prevent deletion of default system lists.
+
+**Changes**:
+- Modified `deleteList()` action in TodoList concept to check list name before deletion
+- Rejects deletion attempts for "Daily To-dos", "Weekly To-dos", or "Monthly To-dos"
+- Returns error: `Cannot delete default system list '${listName}'`
+
+**Rationale**: Default recurring lists are essential system functionality and should not be deletable by users.
+
+### Task List Association Fix
+
+**Implementation**: Fixed "Create Task" button on Dashboard to properly associate tasks with custom lists.
+
+**Changes**:
+- Updated `handleCreateTask()` in Dashboard to support multi-list selection
+- Modified task creation flow to:
+  - Auto-add tasks to Daily/Weekly/Monthly lists based on due date matching list time ranges
+  - Add tasks to user-selected custom lists
+  - Refresh lists after task creation to show new items immediately
+- Frontend: Added checkbox list for custom list selection in Create Task modal
+
+**Rationale**: Tasks were created but not automatically added to their time-appropriate default lists, breaking the core list management functionality.
+
+### Edit Task List Management
+
+**Implementation**: Added ability to manage task-list associations when editing tasks.
+
+**Changes**:
+- Updated Edit Task modal to show checkboxes for custom lists
+- Pre-populates checkboxes with lists currently containing the task
+- On save, calculates diff between original and new list selections:
+  - Adds task to newly selected lists via `addListItem()`
+  - Removes task from deselected lists via `removeListItem()`
+- Refreshes list data after updates
+
+**Rationale**: Users needed ability to reorganize tasks across custom lists after creation.

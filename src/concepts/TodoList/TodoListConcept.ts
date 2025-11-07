@@ -270,7 +270,7 @@ export default class TodoListConcept {
   /**
    * deleteList (list: List)
    *
-   * **requires** list exists
+   * **requires** list exists AND list is not a default system list
    *
    * **effects**
    * The list is removed from the set of all lists.
@@ -278,11 +278,22 @@ export default class TodoListConcept {
   async deleteList(
     { list }: { list: List },
   ): Promise<Empty | { error: string }> {
+    // Check if the list exists first
+    const existingList = await this.lists.findOne({ _id: list });
+    if (!existingList) {
+      return { error: `List with ID '${list}' not found.` };
+    }
+
+    // Prevent deletion of default system lists
+    const defaultListNames = ['Daily To-dos', 'Weekly To-dos', 'Monthly To-dos'];
+    if (defaultListNames.includes(existingList.name)) {
+      return { error: `Cannot delete default system list '${existingList.name}'.` };
+    }
+
     // Effects: Delete the list document
     const result = await this.lists.deleteOne({ _id: list });
     if (result.deletedCount === 0) {
-      // Requires: list exists (checked by deletedCount)
-      return { error: `List with ID '${list}' not found.` };
+      return { error: `Failed to delete list with ID '${list}'.` };
     }
     return {};
   }
@@ -574,17 +585,18 @@ export default class TodoListConcept {
 
     // Calculate new time range based on recurrenceType
     // The new list maintains the same duration as the original
+    // The new list starts one period after the OLD list's start time (to maintain continuity)
     switch (existingList.recurrenceType) {
       case "daily":
-        newStartTime = addDays(existingList.endTime, 1);
+        newStartTime = addDays(existingList.startTime, 1);
         newEndTime = new Date(newStartTime.getTime() + duration);
         break;
       case "weekly":
-        newStartTime = addWeeks(existingList.endTime, 1);
+        newStartTime = addWeeks(existingList.startTime, 1);
         newEndTime = new Date(newStartTime.getTime() + duration);
         break;
       case "monthly":
-        newStartTime = addMonths(existingList.endTime, 1);
+        newStartTime = addMonths(existingList.startTime, 1);
         newEndTime = new Date(newStartTime.getTime() + duration);
         break;
       default:
@@ -639,10 +651,14 @@ export default class TodoListConcept {
    *
    * **effects**
    * Returns the set of all lists owned by the specified user.
+   * Before returning, automatically processes expired recurring lists and auto-clear settings.
    */
   async getListsForUser(
     { user }: { user: User },
   ): Promise<{ lists: ListDocument[] }> {
+    // First, process any expired recurring lists (recreate them for the next period)
+    await this.processRecurringLists({ user });
+
     // Finds all lists where the owner matches the provided user ID
     const userLists = await this.lists.find({ owner: user }).toArray();
     return { lists: userLists }; // Returns an array of ListDocument objects
@@ -680,11 +696,15 @@ export default class TodoListConcept {
    * **effects**
    * Returns the set of all lists owned by the user where current time is between startTime and endTime (inclusive).
    * Lists created without explicit time ranges use MIN_DATE/MAX_DATE and are always active.
+   * Before returning, automatically processes expired recurring lists and auto-clear settings.
    */
   async getActiveListsForUser(
     { user }: { user: User },
   ): Promise<{ lists: ListDocument[] }> {
     const currentTime = new Date();
+
+    // First, process any expired recurring lists (recreate them for the next period)
+    await this.processRecurringLists({ user });
 
     // Finds lists for the user that are currently active
     // Active means current time is within startTime and endTime range
@@ -696,5 +716,74 @@ export default class TodoListConcept {
     }).toArray();
 
     return { lists: activeLists }; // Returns an array of active ListDocument objects
+  }
+
+  /**
+   * processRecurringLists (user: User)
+   * Helper method to automatically recreate expired recurring lists.
+   *
+   * **requires** user is valid
+   *
+   * **effects**
+   * Finds all recurring lists owned by the user that have expired (current time > endTime)
+   * and recreates them for the next time period if they haven't already been recreated.
+   * Also auto-clears completed items if enabled.
+   */
+  async processRecurringLists(
+    { user }: { user: User },
+  ): Promise<Empty> {
+    const currentTime = new Date();
+
+    // Find all expired recurring lists for this user
+    const expiredRecurringLists = await this.lists.find({
+      owner: user,
+      recurrenceType: { $ne: "none" },
+      endTime: { $lt: currentTime },
+    }).toArray();
+
+    // Process each expired recurring list
+    for (const list of expiredRecurringLists) {
+      // Check if a successor list has already been created
+      // A successor would have the same name and owner, with a startTime right after this list's endTime
+      const duration = list.endTime.getTime() - list.startTime.getTime();
+
+      // Calculate when the next list should start (immediately after this one ends)
+      let nextStartTime: Time;
+      switch (list.recurrenceType) {
+        case "daily":
+          nextStartTime = addDays(list.startTime, 1);
+          break;
+        case "weekly":
+          nextStartTime = addWeeks(list.startTime, 1);
+          break;
+        case "monthly":
+          nextStartTime = addMonths(list.startTime, 1);
+          break;
+        default:
+          continue; // Skip unknown recurrence types
+      }
+
+      // Check if a list with this name and the expected next start time already exists
+      const successorExists = await this.lists.findOne({
+        owner: user,
+        name: list.name,
+        startTime: nextStartTime,
+      });
+
+      if (successorExists) {
+        // Already recreated, skip
+        continue;
+      }
+
+      // Auto-clear completed items if enabled
+      if (list.autoClearCompleted) {
+        await this.autoClearIfNeeded({ list: list._id });
+      }
+
+      // Recreate the list for the next period
+      await this.recreateRecurringList({ list: list._id });
+    }
+
+    return {};
   }
 }

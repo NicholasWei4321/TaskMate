@@ -26,8 +26,9 @@ function convertDates(obj: any): any {
   }
 
   if (typeof obj === 'string') {
-    // Check if string is an ISO date format
-    const isoDateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/;
+    // Check if string is an ISO date format (with or without seconds)
+    // Matches: 2024-12-15T23:59 or 2024-12-15T23:59:00 or 2024-12-15T23:59:00.000Z
+    const isoDateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{3})?)?Z?$/;
     if (isoDateRegex.test(obj)) {
       return new Date(obj);
     }
