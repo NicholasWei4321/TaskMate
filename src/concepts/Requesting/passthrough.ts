@@ -43,6 +43,12 @@ export const inclusions: Record<string, string> = {
  */
 
 export const exclusions: Array<string> = [
-  // No exclusions for now - all routes use passthrough mode
-  // In production, we would exclude authenticated routes here
+  // Task operations - require authentication via syncs
+  "/api/AIPrioritizedTask/createTask",
+  "/api/AIPrioritizedTask/updateTask",
+  "/api/AIPrioritizedTask/getPrioritizedTasks",
+
+  // List operations - require authentication via syncs
+  "/api/TodoList/createList",
+  "/api/TodoList/getListsForUser",
 ];
