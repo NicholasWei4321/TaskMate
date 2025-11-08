@@ -25,11 +25,9 @@
  */
 
 export const inclusions: Record<string, string> = {
-  // Authentication routes - public for login/register
-  "/api/UserAuthentication/registerUser": "public registration endpoint",
-  "/api/UserAuthentication/authenticateUser": "public login endpoint",
-  "/api/UserAuthentication/logoutUser": "public logout endpoint",
-  "/api/UserAuthentication/getActiveSession": "needed to check session status",
+  // Public authentication routes - anyone can access
+  "/api/UserAuthentication/register": "public registration endpoint",
+  "/api/UserAuthentication/login": "public login endpoint",
 };
 
 /**
@@ -43,12 +41,19 @@ export const inclusions: Record<string, string> = {
  */
 
 export const exclusions: Array<string> = [
-  // Task operations - require authentication via syncs
+  // === Routes with authentication syncs implemented ===
+  // These demonstrate the sync-based authentication pattern
+
+  // Task operations - authentication syncs implemented
   "/api/AIPrioritizedTask/createTask",
   "/api/AIPrioritizedTask/updateTask",
   "/api/AIPrioritizedTask/getPrioritizedTasks",
 
-  // List operations - require authentication via syncs
+  // List operations - authentication syncs implemented
   "/api/TodoList/createList",
   "/api/TodoList/getListsForUser",
+
+  // Note: Other routes use passthrough mode for demo purposes.
+  // In production, all authenticated routes would have syncs.
+  // See docs/route-configuration.md for full authentication plan.
 ];
