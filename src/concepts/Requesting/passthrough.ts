@@ -25,12 +25,11 @@
  */
 
 export const inclusions: Record<string, string> = {
-  // Feel free to delete these example inclusions
-  "/api/LikertSurvey/_getSurveyQuestions": "this is a public query",
-  "/api/LikertSurvey/_getSurveyResponses": "responses are public",
-  "/api/LikertSurvey/_getRespondentAnswers": "answers are visible",
-  "/api/LikertSurvey/submitResponse": "allow anyone to submit response",
-  "/api/LikertSurvey/updateResponse": "allow anyone to update their response",
+  // Authentication routes - public for login/register
+  "/api/UserAuthentication/registerUser": "public registration endpoint",
+  "/api/UserAuthentication/authenticateUser": "public login endpoint",
+  "/api/UserAuthentication/logoutUser": "public logout endpoint",
+  "/api/UserAuthentication/getActiveSession": "needed to check session status",
 };
 
 /**
@@ -44,7 +43,6 @@ export const inclusions: Record<string, string> = {
  */
 
 export const exclusions: Array<string> = [
-  // Feel free to delete these example exclusions
-  "/api/LikertSurvey/createSurvey",
-  "/api/LikertSurvey/addQuestion",
+  // No exclusions for now - all routes use passthrough mode
+  // In production, we would exclude authenticated routes here
 ];
