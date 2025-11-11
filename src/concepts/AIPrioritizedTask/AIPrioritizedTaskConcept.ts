@@ -313,16 +313,19 @@ Return ONLY the JSON object, no additional text or explanation.`;
       owner: User;
       name: string;
       description: string;
-      dueDate: Date;
+      dueDate: Date | string;
     },
   ): Promise<{ task: Task } | { error: string }> {
+    // Convert dueDate to Date object if it's a string
+    const dueDateObj = typeof dueDate === "string" ? new Date(dueDate) : dueDate;
+
     // Requires: name is non-empty
     if (!name || name.trim() === "") {
       return { error: "Task name cannot be empty." };
     }
 
     // Requires: dueDate is valid
-    if (isNaN(dueDate.getTime())) {
+    if (isNaN(dueDateObj.getTime())) {
       return { error: "Invalid due date. Please provide a valid date/time." };
     }
 
@@ -336,17 +339,17 @@ Return ONLY the JSON object, no additional text or explanation.`;
 
     // Check if the task is already overdue at creation time
     const now = new Date();
-    const isOverdue = dueDate.getTime() < now.getTime();
+    const isOverdue = dueDateObj.getTime() < now.getTime();
 
     // Initialize with time-based priority; AI-enhanced priority will be calculated after task creation
-    const initialPriority = this._calculateTimeBasedPriority(dueDate, isOverdue);
+    const initialPriority = this._calculateTimeBasedPriority(dueDateObj, isOverdue);
 
     const newTaskDoc: TaskDocument = {
       _id: newTaskId,
       owner,
       name,
       description,
-      dueDate,
+      dueDate: dueDateObj,
       completed: false,
       overdue: isOverdue, // Mark as overdue if due date is in the past
       inferredEffortHours: null,
@@ -380,12 +383,17 @@ Return ONLY the JSON object, no additional text or explanation.`;
       task: Task;
       newName?: string;
       newDescription?: string;
-      newDueDate?: Date;
+      newDueDate?: Date | string;
       newEffort?: number;
       newImportance?: number;
       newDifficulty?: number;
     },
   ): Promise<{ task: Task } | { error: string }> {
+    // Convert newDueDate to Date object if it's a string
+    const newDueDateObj = newDueDate
+      ? (typeof newDueDate === "string" ? new Date(newDueDate) : newDueDate)
+      : undefined;
+
     const taskDoc = await this.tasks.findOne({ _id: taskId });
     if (!taskDoc) {
       return { error: `Task with ID '${taskId}' not found.` };
@@ -420,12 +428,12 @@ Return ONLY the JSON object, no additional text or explanation.`;
     }
 
     // Effects: If newDueDate, reset overdue flag
-    if (newDueDate !== undefined) {
-      if (isNaN(newDueDate.getTime())) {
+    if (newDueDateObj !== undefined) {
+      if (isNaN(newDueDateObj.getTime())) {
         return { error: "Invalid new due date. Please provide a valid date/time." };
       }
-      if (newDueDate.getTime() !== taskDoc.dueDate.getTime()) {
-        updateFields.dueDate = newDueDate;
+      if (newDueDateObj.getTime() !== taskDoc.dueDate.getTime()) {
+        updateFields.dueDate = newDueDateObj;
         updateFields.overdue = false; // Reset overdue status when due date changes
         shouldRecalculatePriority = true; // Due date change definitely affects priority
       }

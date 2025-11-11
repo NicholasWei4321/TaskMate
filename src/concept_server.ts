@@ -99,7 +99,9 @@ async function main() {
         Object.getPrototypeOf(instance),
       )
         .filter((name) =>
-          name !== "constructor" && typeof instance[name] === "function"
+          name !== "constructor" &&
+          typeof instance[name] === "function" &&
+          !name.startsWith("_") // Exclude private methods (those starting with _)
         );
 
       for (const methodName of methodNames) {

@@ -215,7 +215,9 @@ export function startRequestingServer(
       Object.getPrototypeOf(concept),
     )
       .filter((name) =>
-        name !== "constructor" && typeof concept[name] === "function"
+        name !== "constructor" &&
+        typeof concept[name] === "function" &&
+        !name.startsWith("_") // Exclude private methods (those starting with _)
       );
     for (const method of methods) {
       const route = `${REQUESTING_BASE_URL}/${conceptName}/${method}`;

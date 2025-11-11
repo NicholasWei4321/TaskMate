@@ -41,19 +41,58 @@ export const inclusions: Record<string, string> = {
  */
 
 export const exclusions: Array<string> = [
-  // === Routes with authentication syncs implemented ===
-  // These demonstrate the sync-based authentication pattern
+  // === UserAuthentication - All require session token ===
+  "/api/UserAuthentication/logout",
+  "/api/UserAuthentication/getCurrentUser",
+  "/api/UserAuthentication/storeCredential",
+  "/api/UserAuthentication/retrieveCredential",
+  "/api/UserAuthentication/updateCredential",
+  "/api/UserAuthentication/deleteCredential",
+  "/api/UserAuthentication/getCredentialTypes",
 
-  // Task operations - authentication syncs implemented
+  // === AIPrioritizedTask - All require authentication ===
   "/api/AIPrioritizedTask/createTask",
   "/api/AIPrioritizedTask/updateTask",
+  "/api/AIPrioritizedTask/snoozeTask",
+  "/api/AIPrioritizedTask/completeTask",
+  "/api/AIPrioritizedTask/getTask",
+  "/api/AIPrioritizedTask/getTasksByOwner",
   "/api/AIPrioritizedTask/getPrioritizedTasks",
+  "/api/AIPrioritizedTask/markOverdue",
+  "/api/AIPrioritizedTask/calculateTaskPriority",
 
-  // List operations - authentication syncs implemented
+  // === TodoList - All require authentication ===
   "/api/TodoList/createList",
+  "/api/TodoList/addListItem",
+  "/api/TodoList/removeListItem",
+  "/api/TodoList/deleteList",
+  "/api/TodoList/markItemCompleted",
+  "/api/TodoList/clearCompletedItems",
+  "/api/TodoList/updateList",
+  "/api/TodoList/updateListSettings",
   "/api/TodoList/getListsForUser",
+  "/api/TodoList/getListByName",
+  "/api/TodoList/getActiveListsForUser",
+  "/api/TodoList/processRecurringLists",
+  "/api/TodoList/autoClearIfNeeded",
+  "/api/TodoList/recreateRecurringList",
+  "/api/TodoList/hasDefaultDates",
 
-  // Note: Other routes use passthrough mode for demo purposes.
-  // In production, all authenticated routes would have syncs.
-  // See docs/route-configuration.md for full authentication plan.
+  // === ExternalAssignmentSync - All require authentication ===
+  "/api/ExternalAssignmentSync/connectSource",
+  "/api/ExternalAssignmentSync/disconnectSource",
+  "/api/ExternalAssignmentSync/pollExternalSource",
+  "/api/ExternalAssignmentSync/identifyChanges",
+  "/api/ExternalAssignmentSync/recordInternalSync",
+  "/api/ExternalAssignmentSync/getSourcesForUser",
+  "/api/ExternalAssignmentSync/getMappedInternalId",
+  "/api/ExternalAssignmentSync/getAssignmentsForSource",
+
+  // === Backend-only private methods (never called by frontend) ===
+  "/api/AIPrioritizedTask/_triggerLLMInference",
+  "/api/AIPrioritizedTask/_createAttributePrompt",
+  "/api/AIPrioritizedTask/_validateInferredAttributes",
+  "/api/AIPrioritizedTask/_calculateTimeBasedPriority",
+  "/api/AIPrioritizedTask/_calculateAIPriority",
+  "/api/AIPrioritizedTask/_recalculateAndSavePriority",
 ];

@@ -385,28 +385,33 @@ export default class ExternalAssignmentSyncConcept {
   }
 
   /**
-   * _getSourcesForUser (user: User): (sources: array of ExternalSourceAccount)
+   * getSourcesForUser (user: User): (sources: array of ExternalSourceAccount)
    *
    * **purpose** Retrieves all external source accounts connected by a specific user.
    * **requires** `user` exists in the system (implicitly, as a generic parameter).
    * **effects** Returns an array of all `ExternalSourceAccount` entities where `owner` is `user`.
    */
-  async _getSourcesForUser(
+  async getSourcesForUser(
     { user }: { user: User },
   ): Promise<GetSourcesForUserSuccess> {
     const sources = await this.externalSourceAccounts.find({ owner: user }).toArray();
     return { sources }; // Queries must always return an array
   }
 
+  // Keep private version for backward compatibility with tests
+  async _getSourcesForUser(params: { user: User }) {
+    return this.getSourcesForUser(params);
+  }
+
   /**
-   * _getMappedInternalId (externalId: String, sourceAccount: ExternalSourceAccount): (internalId: Assignment)
-   * _getMappedInternalId (externalId: String, sourceAccount: ExternalSourceAccount): (error: String)
+   * getMappedInternalId (externalId: String, sourceAccount: ExternalSourceAccount): (internalId: Assignment)
+   * getMappedInternalId (externalId: String, sourceAccount: ExternalSourceAccount): (error: String)
    *
    * **purpose** Retrieves the internal assignment ID corresponding to a given external assignment ID and source.
    * **requires** An ExternalAssignment exists with `source = sourceAccount` and `externalId = externalId`.
    * **effects** Returns the `internalAssignment` from the matching ExternalAssignment.
    */
-  async _getMappedInternalId(
+  async getMappedInternalId(
     { externalId, sourceAccount }: { externalId: string; sourceAccount: ID },
   ): Promise<GetMappedInternalIdSuccess | { error: string }> {
     const mapping = await this.externalAssignments.findOne({ source: sourceAccount, externalId });
@@ -416,15 +421,20 @@ export default class ExternalAssignmentSyncConcept {
     return { internalId: mapping.internalAssignment };
   }
 
+  // Keep private version for backward compatibility with tests
+  async _getMappedInternalId(params: { externalId: string; sourceAccount: ID }) {
+    return this.getMappedInternalId(params);
+  }
+
   /**
-   * _getAssignmentsForSource (sourceAccount: ExternalSourceAccount): (assignments: array of ExternalAssignment)
-   * _getAssignmentsForSource (sourceAccount: ExternalSourceAccount): (error: String)
+   * getAssignmentsForSource (sourceAccount: ExternalSourceAccount): (assignments: array of ExternalAssignment)
+   * getAssignmentsForSource (sourceAccount: ExternalSourceAccount): (error: String)
    *
    * **purpose** Retrieves all external assignments currently synced for a specific external source account.
    * **requires** `sourceAccount` exists in the concept's state.
    * **effects** Returns an array of all ExternalAssignments where `source = sourceAccount`.
    */
-  async _getAssignmentsForSource(
+  async getAssignmentsForSource(
     { sourceAccount }: { sourceAccount: ID },
   ): Promise<GetAssignmentsForSourceSuccess | { error: string }> {
     const existingSource = await this.externalSourceAccounts.findOne({ _id: sourceAccount });
@@ -433,5 +443,10 @@ export default class ExternalAssignmentSyncConcept {
     }
     const assignments = await this.externalAssignments.find({ source: sourceAccount }).toArray();
     return { assignments }; // Queries must always return an array
+  }
+
+  // Keep private version for backward compatibility with tests
+  async _getAssignmentsForSource(params: { sourceAccount: ID }) {
+    return this.getAssignmentsForSource(params);
   }
 }

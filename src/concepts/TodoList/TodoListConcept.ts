@@ -208,16 +208,23 @@ export default class TodoListConcept {
 
     // Requires: Check itemDueDate against list's time range
     if (itemDueDate) {
-      if (existingList.startTime && itemDueDate < existingList.startTime) {
+      // Convert itemDueDate to Date if it's a string
+      const dueDateObj = itemDueDate instanceof Date ? itemDueDate : new Date(itemDueDate);
+
+      // Convert list times to Date objects if they're strings
+      const listStartTime = existingList.startTime instanceof Date ? existingList.startTime : new Date(existingList.startTime);
+      const listEndTime = existingList.endTime instanceof Date ? existingList.endTime : new Date(existingList.endTime);
+
+      if (existingList.startTime && dueDateObj < listStartTime) {
         return {
           error:
-            `Item due date '${itemDueDate.toISOString()}' is before the list's start time '${existingList.startTime.toISOString()}'.`,
+            `Item due date '${dueDateObj.toISOString()}' is before the list's start time '${listStartTime.toISOString()}'.`,
         };
       }
-      if (existingList.endTime && itemDueDate > existingList.endTime) {
+      if (existingList.endTime && dueDateObj > listEndTime) {
         return {
           error:
-            `Item due date '${itemDueDate.toISOString()}' is after the list's end time '${existingList.endTime.toISOString()}'.`,
+            `Item due date '${dueDateObj.toISOString()}' is after the list's end time '${listEndTime.toISOString()}'.`,
         };
       }
     }
@@ -406,8 +413,12 @@ export default class TodoListConcept {
     }
 
     // Update times if provided
-    const startTime = newStartTime !== undefined ? newStartTime : existingList.startTime;
-    const endTime = newEndTime !== undefined ? newEndTime : existingList.endTime;
+    let startTime = newStartTime !== undefined ? newStartTime : existingList.startTime;
+    let endTime = newEndTime !== undefined ? newEndTime : existingList.endTime;
+
+    // Convert to Date objects if they are strings (from MongoDB)
+    startTime = startTime instanceof Date ? startTime : new Date(startTime);
+    endTime = endTime instanceof Date ? endTime : new Date(endTime);
 
     if (newStartTime !== undefined) {
       update.startTime = newStartTime;
@@ -419,6 +430,28 @@ export default class TodoListConcept {
     // Validate time constraints
     if (startTime.getTime() > endTime.getTime()) {
       return { error: "Start time must be before or equal to end time." };
+    }
+
+    // Check if any existing items would fall outside the new time range
+    // Only check if time boundaries are being updated (not default dates)
+    const hasNonDefaultDates =
+      startTime.getTime() !== TodoListConcept.MIN_DATE.getTime() ||
+      endTime.getTime() !== TodoListConcept.MAX_DATE.getTime();
+
+    if (hasNonDefaultDates && (newStartTime !== undefined || newEndTime !== undefined)) {
+      const outOfRangeItems = existingList.items.filter(item => {
+        if (!item.dueDate) return false; // Items without due dates are always valid
+
+        const dueDate = item.dueDate instanceof Date ? item.dueDate : new Date(item.dueDate);
+        return dueDate < startTime || dueDate > endTime;
+      });
+
+      if (outOfRangeItems.length > 0) {
+        const itemText = outOfRangeItems.length === 1 ? "item" : "items";
+        return {
+          error: `Cannot update list times: ${outOfRangeItems.length} ${itemText} would fall outside the new time range. Please remove or adjust these items first.`
+        };
+      }
     }
 
     // Update autoClearCompleted if provided
