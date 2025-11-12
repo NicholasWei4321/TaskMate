@@ -26,8 +26,10 @@
 
 export const inclusions: Record<string, string> = {
   // Public authentication routes - anyone can access
-  "/api/UserAuthentication/register": "public registration endpoint",
-  "/api/UserAuthentication/login": "public login endpoint",
+  // anyone should be able to register and account, it's impossible to first authenticate and then register
+  "/api/UserAuthentication/register": "public registration endpoint: anyone should be able to create an account",
+  // anyone should be able to login, since they need to obtain a session token
+  "/api/UserAuthentication/login": "public login endpoint: anyone should be able to login to obtain a session token",
 };
 
 /**

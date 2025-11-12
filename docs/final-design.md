@@ -2,22 +2,20 @@
 
 ## Overview
 
-This document compares the implemented TaskMate application against the original concept design specified in `NicholasWei-6104/assignments/assignment2.md`. The comparison focuses on architectural differences in concept design and synchronization patterns while noting key implementation variations.
+This document compares the implemented TaskMate application against the original concept design from Assignment 2.
 
 ## Core Architectural Differences
 
 ### 1. **Concept Decomposition Philosophy**
 
-**Original Design**: The assignment specification proposed a tightly integrated architecture with four core concepts (`Task`, `Assigner`, `Priority`, `TodoList`) that were conceptually separate but operationally interdependent.
+**Original Design**: The original specification had four core concepts (`Task`, `Assigner`, `Priority`, `TodoList`), that were conceptually separate but operationally interdependent. `Priority` and `Assigner` only a single action, and it seemed better to incoroporate them into the `Task` concept.
 
-**Actual Implementation**: TaskMate adopts a more modular, loosely-coupled architecture with five distinct concepts:
+**Actual Implementation**: TaskMate combines `Priority` and `Task` and also adds `UserAuthentication` and `ExternalAssignmentSync`. The `Requesting` concept is also used to prevent exposure in the frontend of actions that require authentication:
 - `AIPrioritizedTask` - Combines Task and Priority functionality with AI enhancement
 - `TodoList` - Time-scoped collections of generic items
 - `ExternalAssignmentSync` - Replaces the implicit Assigner concept with explicit external platform integration (see difference #3).
 - `UserAuthentication` - Session and credential management (not in original spec)
 - `Requesting` - Request/response handling (infrastructure concept)
-
-**Design Rationale**: The implementation favors **concept independence** and **generic reusability**. Each concept can function autonomously with minimal dependencies, making the system more maintainable and extensible.
 
 ### 2. **Task vs. AIPrioritizedTask: Priority Integration**
 
@@ -26,7 +24,7 @@ This document compares the implemented TaskMate application against the original
 **Implementation**: `AIPrioritizedTask` is a unified concept that:
 - Internalizes priority calculation as a core task attribute
 - Uses LLM inference to extract effort, importance, and difficulty from task descriptions
-- Implements a sophisticated priority formula: `timeBasedScore + (importance × 50) + (difficulty × 30) + (1/effort × 100)`
+- Implements priority formula: `timeBasedScore + (importance × 50) + (difficulty × 30) + (1/effort × 100)`
 - Falls back to time-based priority when LLM inference fails
 - Stores `priorityScore` directly in the task document with metadata tracking (`lastPriorityCalculationTime`)
 
@@ -73,22 +71,6 @@ sync getTaskPriority
 1. **Authenticate**: Verify sessionToken → getCurrentUser
 2. **Execute**: Use authenticated user → perform concept action
 3. **Respond**: Send result/error back to frontend
-
-Each API endpoint has 3-4 syncs (Authenticate → ExecuteWithAuth → Response → ErrorResponse). For example:
-
-```typescript
-AuthenticateCreateTaskRequest: ({ request, sessionToken }) =>
-  when Requesting.request + path="/AIPrioritizedTask/createTask"
-  then UserAuthentication.getCurrentUser
-
-CreateTaskWithAuth: ({ request, sessionToken, user, name, description, dueDate }) =>
-  when Requesting.request + UserAuthentication.getCurrentUser
-  then AIPrioritizedTask.createTask
-
-CreateTaskResponse: ({ request, task }) =>
-  when Requesting.request + AIPrioritizedTask.createTask
-  then Requesting.respond
-```
 
 **Key Differences**:
 - Authentication is baked into nearly all sync chains (not present in original design)
