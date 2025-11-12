@@ -648,7 +648,9 @@ export default class TodoListConcept {
       if (existingList.startTime && newStartTime && item.dueDate) {
         // Calculate the time shift (in milliseconds) from the old list's start to the new list's start
         const timeShift = newStartTime.getTime() - existingList.startTime.getTime();
-        adjustedDueDate = new Date(item.dueDate.getTime() + timeShift);
+        // Convert item.dueDate to Date object if it's a string (from MongoDB)
+        const itemDueDateObj = item.dueDate instanceof Date ? item.dueDate : new Date(item.dueDate);
+        adjustedDueDate = new Date(itemDueDateObj.getTime() + timeShift);
       }
       return {
         id: item.id,
