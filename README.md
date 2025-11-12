@@ -20,7 +20,7 @@ See the final user journey [here](https://youtu.be/8ZAohbe3wXg).
 
 The backend service spins down with inactivity, so make sure to first visit [https://taskmate-backend-kfiq.onrender.com/](https://taskmate-backend-kfiq.onrender.com/) to make sure that the backend is running.
 
-Afterward, visit [https://taskmate-eyku.onrender.com](https://taskmate-backend-kfiq.onrender.com/) to use TaskMate!
+Afterward, visit [https://taskmate-eyku.onrender.com](https://taskmate-eyku.onrender.com) to use TaskMate!
 
 ### Local Development
 
